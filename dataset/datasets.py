@@ -4,7 +4,7 @@ import torch
 import dplabtools.config.slides
 dplabtools.config.slides.mpp_round_decimal_places = 4
 from dplabtools.slides.patches import WholeImageGridPatches, MemPatchExtractor
-from dplabtools.slides.processing import WSIMask
+#from dplabtools.slides.processing import WSIMask
 import os
 import numpy as np
 import random
@@ -245,7 +245,7 @@ class SimCLRDataset(BaseDataset):
         return self.multicrop_transforms(x).float()
 
     def __getitem__(self, index):
-        image = Image.open(self.datalist[index]['path'])
+        image = Image.open(self.datalist[index]['path'].replace('/home/txu/scratch/amgrp/', '/project/amgrp/txu/'))
 
         # get SimCLR transformed large crops
         image_1 = self.transform_data(image)
