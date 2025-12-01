@@ -1,19 +1,14 @@
-import numpy as np
 import torch
 from torch import nn
-from torch.utils import data
 from sklearn import metrics
 import wandb
 from torchvision import transforms
-import tqdm
-import h5py
-import os
 
 from utils.base_trainer import Trainer
 from utils.defaut_args import parser
 from utils.stain_aug import StainAug
-from dataset.datasets import SupervisedDataset, FeatureExtractionDataset
-from models.cnn import CNN
+from dataset.datasets import SupervisedDataset
+from models.cnn import ResNetEncoder
 
 
 class SupervisedTrainer(Trainer):
@@ -62,16 +57,24 @@ class SupervisedTrainer(Trainer):
         """
 
         # define model for supervised patch learning
-        return_features = self.args.running_mode == 'deploy_ensemble'
-        self.model = CNN(args, return_features=return_features)
+        self.model = ResNetEncoder(self.args)
         if self.args.use_pretrained:
             self.load_pretrained(path=self.args.pretrained_path)
 
         self.model = self.model.to(self.device)
+        # freeze feature model
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        # randomly initialize and train final classification layer
+        self.model.model.fc = nn.Linear(
+            self.model.model.fc.in_features,
+            self.args.num_classes
+        ).to(self.device)
 
         # optim definition
         self.optimizer = torch.optim.AdamW(
-            self.model.parameters(),
+            self.model.model.fc.parameters(),
             lr=self.args.lr,
             weight_decay=self.args.weight_decay,
             betas=(self.args.beta1, self.args.beta2)
@@ -217,125 +220,6 @@ class SupervisedTrainer(Trainer):
         model_dict.update(pretrained_dict)
         self.model.load_state_dict(model_dict)
 
-    def get_wsi_eval_iterator(self, use_all_datasets=False, return_dims=False):
-        """
-        Get a WSI-level eval iterator to extract features or obtain slide-level metrics
-        :param use_all_datasets: if True, also return a dataloader for train+val WSIs for feature extraction
-        :param return_dims: if True, dimensions of each slide will also be returned from dataloader
-        :return: WSI-level loader for test datalist (optionally also train+val)
-        """
-        eval_ds = FeatureExtractionDataset(
-            self.args,
-            self.test_data['data'],
-            self.eval_transforms,
-            return_dims=return_dims
-        )
-
-        if use_all_datasets:
-            trainval_ds = FeatureExtractionDataset(
-                self.args,
-                self.train_data['data'] + self.val_data['data'],
-                self.eval_transforms,
-                return_dims=return_dims
-            )
-            return eval_ds, trainval_ds
-
-        return eval_ds
-
-    def deploy_ensemble(self):
-        """
-        Run and average outputs from k-fold pretrained models and save heatmaps and features for each train/val/test set
-        WSI for MIL methods (such as feature engineering and maxpooling on patch-level classification)
-        """
-        print(f'Using ensemble of models from base path: {self.args.ensemble_base_path}')
-        assert self.args.world_size <= 1, 'Distributed training not supported with this eval function!'
-
-        # make output dir
-        if not os.path.exists(self.args.train_ensemble_output_path):
-            os.makedirs(self.args.train_ensemble_output_path)
-        if not os.path.exists(self.args.test_ensemble_output_path):
-            os.makedirs(self.args.test_ensemble_output_path)
-
-        with torch.no_grad():
-            for fold in range(self.args.num_folds):
-                print(f'======== Running on fold {fold} ========')
-
-                # load model
-                self.args.use_pretrained = True
-                self.args.pretrained_path = f'{self.args.ensemble_base_path}/best_model_weights_fold_{fold}.pt'
-                self.init_model_and_optimizer()
-                self.model.eval()
-
-                # test_dataloader, trainval_dataloader = self.get_wsi_eval_iterator(
-                #     return_dims=True, use_all_datasets=True)
-                test_dataloader = self.get_wsi_eval_iterator(return_dims=True)
-
-                for dataloader, output_path in zip(
-                    [test_dataloader],  # [test_dataloader, trainval_dataloader],
-                    [self.args.test_ensemble_output_path],  # [self.args.test_ensemble_output_path, self.args.train_ensemble_output_path],
-                ):
-                    for wsi_patch_generator, wsi_id, wsi_level0_dims, wsi_level2_dims, (mpp_x, mpp_y), wsi_label, patient_id in tqdm.tqdm(dataloader):
-
-                        print(f'Running on slide: {wsi_id}')
-                        patch_probs = []
-                        patch_locs = []
-                        patch_feats = []
-                        patch_tb_probs = []
-                        for patches, locations in wsi_patch_generator:
-                            # run patches thru model, append patch probabilities to list
-                            patches = patches.to(self.device)
-                            logits, features = self.model(patches)
-                            probs = torch.softmax(logits, dim=1)[:, 1]  # get probs of tumor class
-                            if self.args.num_classes == 3:
-                                tb_probs = torch.softmax(logits, dim=1)[:, 2]  # get probs of tumor bed class
-                                patch_tb_probs.extend(tb_probs.detach().cpu().numpy())
-
-                            patch_probs.extend(probs.detach().cpu().numpy())
-                            patch_feats.extend(features.detach().cpu().numpy())
-                            patch_locs.extend(locations)
-
-                        # save to h5 file
-                        heatmap_output_path = f'{output_path}/{wsi_id}.h5'
-                        mode = 'w' if fold == 0 else 'a'
-                        with h5py.File(heatmap_output_path, mode) as f:
-                            f.create_dataset(f'fold_{fold}_probs', data=patch_probs)
-                            f.create_dataset(f'fold_{fold}_xy_coords', data=patch_locs)
-                            f.create_dataset(f'fold_{fold}_features', data=patch_feats)
-                            if self.args.num_classes == 3:
-                                f.create_dataset(f'fold_{fold}_tb_probs', data=patch_tb_probs)
-
-                            # save slide info for first fold only!
-                            if fold == 0:
-                                f.create_dataset('mpp_x', data=mpp_x)
-                                f.create_dataset('mpp_y', data=mpp_y)
-                                f.create_dataset('level0_dims', data=wsi_level0_dims)
-                                f.create_dataset('level2_dims', data=wsi_level2_dims)
-                                f.create_dataset('label', data=wsi_label)
-                                f.create_dataset('patch_mpp', data=0.5)
-                                f.create_dataset('patient_id', data=patient_id)
-
-                            # adjust to align features so don't have to do it in MIL training
-                            if fold == 4:
-                                base_coords = None
-                                all_features = []
-
-                                for feat_fold in range(5):
-                                    feats = f[f'fold_{feat_fold}_features'][:]
-                                    coords = f[f'fold_{feat_fold}_xy_coords'][:].tolist()
-
-                                    # if this is the first fold, set the base coords
-                                    if base_coords is None:
-                                        base_coords = coords
-                                        all_features.append(feats)
-                                    
-                                    # otherwise, add to feats in the same order as base coords
-                                    else:
-                                        feats = np.array([feats[coords.index(coord)] for coord in base_coords])
-                                        all_features.append(feats)
-                                
-                                f.create_dataset('base_coords', data=base_coords)
-                                f.create_dataset('all_features', data=all_features)
-
 
 if __name__ == "__main__":
     # add new args here
@@ -347,25 +231,7 @@ if __name__ == "__main__":
                         help='name of resnet model for CNN')
     parser.add_argument('--num_classes', default=2, type=int,
                         help='number of classification classes')
-    parser.add_argument('--mask_base_path', default=None, type=str,
-                        help='base path to WSI masks')
-    parser.add_argument('--include_tb', default=False, type=lambda x: bool(int(x)),
-                        help='whether to include tumor bed in training')
-
-    parser.add_argument('--running_mode', default='run', type=str,
-                        help='can do: run, deploy_ensemble')
-    parser.add_argument('--ensemble_base_path', default=None, type=str,
-                        help='base path to get model weights for ensembling')
-    parser.add_argument('--train_ensemble_output_path', default=None, type=str,
-                        help='base path to save ensemble output heatmaps for train/val set')
-    parser.add_argument('--test_ensemble_output_path', default=None, type=str,
-                        help='base path to save ensemble output heatmaps for test set')
 
     args = parser.parse_args()
     trainer = SupervisedTrainer(args)
-    if args.running_mode == 'run':
-        trainer.run()
-    elif args.running_mode == 'deploy_ensemble':
-        trainer.deploy_ensemble()
-    else:
-        raise NotImplementedError
+    trainer.run()
