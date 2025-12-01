@@ -3,7 +3,7 @@ import wandb
 from torchvision import transforms
 from math import ceil
 from PIL import ImageFilter
-from torch.amp import GradScaler, autocast
+from torch.cuda.amp import GradScaler, autocast
 
 from utils.base_trainer import Trainer
 from utils.defaut_args import parser
@@ -44,7 +44,7 @@ class SelfSupervisedTrainer(Trainer):
         print('Set drop_last=True for self-supervised training!')
 
         # loss func and optim and scheduler
-        self.loss_fn = SIGReg(self.args)
+        self.loss_fn = SIGReg()
         self.loss_fn = self.loss_fn.to(self.device)
 
         self.scheduler = None
@@ -128,7 +128,7 @@ class SelfSupervisedTrainer(Trainer):
         n_iters = 0
         for imgs in dataloader:
 
-            with autocast(self.device, enabled=True):
+            with autocast(enabled=True):
 
                 # get representations of images
                 imgs = [img.to(self.device) for img in imgs]
@@ -203,7 +203,7 @@ if __name__ == "__main__":
                         help='number of multicrops to use')
     parser.add_argument('--warmup', default=10, type=int,
                         help='number of epochs to warmup')
-    parser.add_argument('--lambd', default=0.05, type=int,
+    parser.add_argument('--lambd', default=0.05, type=float,
                         help='lambda for lejepa loss weighting')
 
     args = parser.parse_args()

@@ -358,7 +358,7 @@ class Trainer:
 
             # wandb log on node 0
             if self.args.rank == 0:
-                run = wandb.init(config=self.args)
+                run = wandb.init(config=self.args, mode='offline')
                 self.configure_wandb_metrics()
                 print('Using standard train')
                 self._run()
@@ -453,7 +453,7 @@ class Trainer:
         for fold in range(self.args.num_folds):
 
             # init run and model for fold
-            run = wandb.init(config=self.args, reinit=True)
+            run = wandb.init(config=self.args, reinit=True, mode='offline')
             self.init_model_and_optimizer()
 
             # set all base run names of folds to be the same!
