@@ -1,5 +1,7 @@
 import torch
 from torch import nn
+import torch.multiprocessing
+torch.multiprocessing.set_sharing_strategy('file_system')
 from sklearn import metrics
 import wandb
 from torchvision import transforms
@@ -68,7 +70,7 @@ class SupervisedTrainer(Trainer):
 
         # randomly initialize and train final classification layer
         self.model.model.fc = nn.Linear(
-            self.model.model.fc.in_features,
+            2048,
             self.args.num_classes
         ).to(self.device)
 
@@ -212,13 +214,14 @@ class SupervisedTrainer(Trainer):
                 pretrained_dict[key.replace('model.resnet.', 'model.')] = pretrained_dict.pop(key)
 
         model_dict = self.model.state_dict()
-        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-        if pretrained_dict == {}:
-            raise Warning('No model weights were loaded!')
-        else:
-            print('Pretrained model weights were loaded!')
-        model_dict.update(pretrained_dict)
-        self.model.load_state_dict(model_dict)
+        #pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        # if pretrained_dict == {}:
+        #     raise Warning('No model weights were loaded!')
+        # else:
+        #     print('Pretrained model weights were loaded!')
+        # model_dict.update(pretrained_dict)
+        res = self.model.load_state_dict(pretrained_dict)
+        print(res)
 
 
 if __name__ == "__main__":
@@ -231,6 +234,8 @@ if __name__ == "__main__":
                         help='name of resnet model for CNN')
     parser.add_argument('--num_classes', default=2, type=int,
                         help='number of classification classes')
+    parser.add_argument('--embedding_size', default=512, type=int,
+                        help='size of embedding for ResNet output')
 
     args = parser.parse_args()
     trainer = SupervisedTrainer(args)

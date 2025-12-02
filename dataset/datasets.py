@@ -76,31 +76,10 @@ class BaseDataset(data.Dataset):
 class SupervisedDataset(BaseDataset):
     """Dataset for supervised patch learning"""
 
-    def __init__(self, args, datalist, transforms, evaluate=False):
-
-        if not args.include_tb:
-            datalist = [d for d in datalist if d['label'] != 'negative_tb']
-
-        super().__init__(args, datalist, transforms, evaluate=evaluate)
-        if args.num_classes == 2:
-            if args.include_tb:
-                self.label_map = {'negative': 0, 'negative_tb': 0, 'positive': 1}
-            else:
-                self.label_map = {'negative': 0, 'positive': 1}
-        elif args.num_classes == 3:
-            self.label_map = {'negative': 0, 'positive': 1, 'negative_tb': 2}
-            assert args.include_tb, 'include_tb must be set to True for 3 class classification'
-        else:
-            raise ValueError(f'Unsupported number of classes: {args.num_classes}')
-
     def __getitem__(self, index):
-        image = Image.open(self.datalist[index]['path'])
+        image = Image.open(self.datalist[index]['image'].replace('/home/tonyxu74/scratch/patch_datasets/nct-crc-he-100k/', '/aippmdata/public/NCT-CRC-HE-100K/'))
         image = self.transform_data(image)
-
-        if self.datalist[index]['label'] in self.label_map:
-            label = self.label_map[self.datalist[index]['label']]
-        else:
-            raise ValueError(f'Unsupported label: {self.datalist[index]["label"]}')
+        label = self.datalist[index]['label']
 
         return image, label
 

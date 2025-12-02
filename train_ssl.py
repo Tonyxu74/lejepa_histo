@@ -48,7 +48,7 @@ class SelfSupervisedTrainer(Trainer):
             self.loss_fn = NTXent(
                 tau=self.args.temperature,
                 actual_batch_size=self.args.batch_size,
-                gather_grads=True,
+                gather_grads=self.args.world_size > 1,
                 world_size=self.args.world_size
             )
         elif self.args.ssl_method == 'paws':
