@@ -118,73 +118,8 @@ class NTXent(nn.Module):
         return loss
 
 
-class PAWSLoss(nn.Module):
-
-    """PAWS Loss func from https://github.com/facebookresearch/suncet/blob/main/src/losses.py"""
-
-    def __init__(self, multicrop=6, tau=0.1, T=0.25, me_max=True):
-        super(PAWSLoss, self).__init__()
-
-        self.multicrop = multicrop
-        self.softmax_sharpen = tau
-        self.target_sharpen = T
-        self.me_max = me_max
-        self.softmax = torch.nn.Softmax(dim=1)
-
-    def sharpen(self, p):
-        sharp_p = p ** (1. / self.target_sharpen)
-        sharp_p /= torch.sum(sharp_p, dim=1, keepdim=True)
-        return sharp_p
-
-    def snn(self, query, supports, labels):
-        """ Soft Nearest Neighbours similarity classifier """
-        # Step 1: normalize embeddings
-        query = torch.nn.functional.normalize(query)
-        supports = torch.nn.functional.normalize(supports)
-
-        # Step 2: gather embeddings from all workers
-        supports = AllGather.apply(supports)
-
-        # Step 3: compute similarlity between local embeddings
-        return self.softmax(query @ supports.T / self.softmax_sharpen) @ labels
-
-    def forward(
-        self,
-        anchor_views,
-        anchor_supports,
-        anchor_support_labels,
-        target_views,
-        target_supports,
-        target_support_labels,
-    ):
-        # -- NOTE: num views of each unlabeled instance = 2+multicrop
-        batch_size = len(anchor_views) // (2 + self.multicrop)
-
-        # Step 1: compute anchor predictions
-        probs = self.snn(anchor_views, anchor_supports, anchor_support_labels)
-
-        # Step 2: compute targets for anchor predictions
-        with torch.no_grad():
-            targets = self.snn(target_views, target_supports, target_support_labels)
-            targets = self.sharpen(targets)
-            if self.multicrop > 0:
-                mc_target = 0.5 * (targets[:batch_size] + targets[batch_size:])
-                targets = torch.cat([targets, *[mc_target for _ in range(self.multicrop)]], dim=0)
-            targets[targets < 1e-4] *= 0  # numerical stability
-
-        # Step 3: compute cross-entropy loss H(targets, queries)
-        loss = torch.mean(torch.sum(torch.log(probs ** (-targets)), dim=1))
-
-        # Step 4: compute me-max regularizer
-        rloss = 0.
-        if self.me_max:
-            avg_probs = AllReduce.apply(torch.mean(self.sharpen(probs), dim=0))
-            rloss -= torch.sum(torch.log(avg_probs ** (-avg_probs)))
-
-        return loss, rloss
-
-
 class SIGReg(torch.nn.Module):
+    """Base implementation from https://github.com/rbalestr-lab/lejepa/blob/main/MINIMAL.md"""
     def __init__(self, knots=17):
         super().__init__()
         t = torch.linspace(0, 5, knots, dtype=torch.float32)
@@ -197,13 +132,17 @@ class SIGReg(torch.nn.Module):
         self.register_buffer("weights", weights * window)
 
     def forward(self, proj):
+        # project to 1024 based on recommendations in paper
         A = torch.randn(proj.size(-1), 1024, device="cuda")
         A = A.div_(A.norm(p=2, dim=0))
         x_t = (proj @ A).unsqueeze(-1) * self.t
+
+        # permit DDP training
         x_t_cos = x_t.cos().mean(-3)
         x_t_sin = x_t.sin().mean(-3)
         avg_cos = AllReduce.apply(x_t_cos)
         avg_sin = AllReduce.apply(x_t_sin)
+
         err = (avg_cos - self.phi).square() + avg_sin.square()
         statistic = (err @ self.weights) * proj.size(-2)
         return statistic.mean()
