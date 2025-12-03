@@ -26,11 +26,28 @@ I will be using SimCLR with similar settings as a baseline for comparison, along
 
 | Pretraining Method | Pretraining Dataset                                              | Architecture | Results (Acc.)      |
 |--------------------|------------------------------------------------------------------|--------------|---------------------|
-| LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     | 0.948               |
+| LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     | 0.949               |
 | SimCLR             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     |                     |
 | LeJEPA             | NCT-CRC-HE-100K                                                  | ResNet50     |                     |
 | LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ViT-Base     |                     |
 | LeJEPA             | NCT-CRC-HE-100K                                                  | ViT-Base     |                     |
+
+The following details the training progress of the first row in the results table. Results were obtained by training a linear layer on top of pretrained weights with the model frozen. 
+LeJEPA seems to converge quickly in these experiments (which may be why loss and downstream accuracy are not fully correlated). 
+
+| Pretrain Epoch | LeJEPA Loss | Acc.  | 
+|----------------|-------------|-------|
+| Random Init.   | N/A         | 0.536 |
+| 10             | 0.609       | 0.954 |
+| 20             | 0.554       | 0.951 |
+| 30             | 0.537       | 0.952 |
+| 40             | 0.526       | 0.954 |
+| 50             | 0.516       | 0.951 |
+| 60             | 0.507       | 0.947 |
+| 70             | 0.497       | 0.954 |
+| 80             | 0.487       | 0.955 |
+| 90             | 0.481       | 0.956 |
+| 100            | 0.478       | 0.949 |
 
 
 ## Acknowledgements
