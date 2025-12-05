@@ -22,12 +22,12 @@ Generic arguments can be found in `utils/default_args.py` and task-specific argu
 I pretrained LeJEPA on patches taken from the [SemiCOL](https://www.semicol.org/) challenge dataset and finetuned on [NCT-CRC-HE-100K](https://zenodo.org/records/1214456) for tissue classification.
 I used a batch size of 256, 2 global crops and 8 local crops, and trained for 100 epochs. It took about 46 GB of GPU memory and 3 days to train.
 
-I will be using SimCLR with similar settings as a baseline for comparison, along with training LeJEPA on NCT-CRC-HE-100K directly (unlabelled), and training LeJEPA using a ViT architecture.
+I used SimCLR with similar settings as a baseline for comparison, and will be training LeJEPA on NCT-CRC-HE-100K directly (unlabelled), and training LeJEPA using a ViT architecture.
 
 | Pretraining Method | Pretraining Dataset                                              | Architecture | Results (Acc.)      |
 |--------------------|------------------------------------------------------------------|--------------|---------------------|
 | LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     | 0.949               |
-| SimCLR             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     |                     |
+| SimCLR             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     | 0.931               |
 | LeJEPA             | NCT-CRC-HE-100K                                                  | ResNet50     |                     |
 | LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ViT-Base     |                     |
 | LeJEPA             | NCT-CRC-HE-100K                                                  | ViT-Base     |                     |
