@@ -3,36 +3,6 @@ import torchvision
 import torch
 
 
-class CNN(nn.Module):
-    """CNN model for supervised feature extraction"""
-
-    def __init__(self, args, return_features=False):
-        super(CNN, self).__init__()
-        self.model = torchvision.models.__dict__[args.resnet_name](pretrained=False, num_classes=args.num_classes)
-        self.return_features = return_features
-
-    def forward(self, x):
-
-        if self.return_features:
-            x = self.model.conv1(x)
-            x = self.model.bn1(x)
-            x = self.model.relu(x)
-            x = self.model.maxpool(x)
-
-            x = self.model.layer1(x)
-            x = self.model.layer2(x)
-            x = self.model.layer3(x)
-            x = self.model.layer4(x)
-
-            x = self.model.avgpool(x)
-            feats = torch.flatten(x, 1)
-            x = self.model.fc(feats)
-            return x, feats
-
-        x = self.model(x)
-        return x
-
-
 class ResNetEncoder(nn.Module):
     """ResNet model for self-supervised learning, supports multicrops!"""
 

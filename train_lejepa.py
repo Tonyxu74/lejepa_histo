@@ -30,15 +30,17 @@ class GaussianBlur(object):
         return img.filter(ImageFilter.GaussianBlur(radius=radius))
 
 
-class SelfSupervisedTrainer(Trainer):
-    """Patch-based self-supervised CNN training"""
+class LeJEPATrainer(Trainer):
+    """Patch-based self-supervised training using LeJEPA based on original paper: https://arxiv.org/pdf/2511.08544
+    and minimal codebase: https://github.com/rbalestr-lab/lejepa/blob/main/MINIMAL.md
+    """
 
     def __init__(self, args):
         """
-        Initialize the self-supervised trainer
+        Initialize the self-supervised LeJEPA trainer
         :param args: argparse arguments entered for experiment
         """
-        self.run_task = 'Patch-level self-supervised CNN pretraining using LeJEPA'
+        self.run_task = 'Patch-level self-supervised pretraining using LeJEPA'
         print(f'Task={self.run_task}')
         super().__init__(args)
 
@@ -53,7 +55,7 @@ class SelfSupervisedTrainer(Trainer):
         self.probe = None
         self.scaler = GradScaler(enabled=True)
 
-        # definintions to create datasets, found in base Trainer class
+        # definintions to create datasets, found in base Trainer class, can use similar dataset to SimCLR
         self.Dataset_Class = SimCLRDataset
         self.norm_mean = (0.5, 0.5, 0.5)
         self.norm_std = (0.5, 0.5, 0.5)
@@ -68,6 +70,7 @@ class SelfSupervisedTrainer(Trainer):
         self.model = ResNetEncoder(self.args)
         self.model = self.model.to(self.device)
 
+        # params based on LeJEPA paper
         g1 = {"params": self.model.parameters(), "lr": self.args.lr, "weight_decay": 5e-2}
 
         self.optimizer = torch.optim.AdamW([g1])
@@ -161,16 +164,13 @@ class SelfSupervisedTrainer(Trainer):
 
     def evaluate(self, dataloader, stage):
         """
-        Defines one epoch of self-supervised evaluation
-        :param dataloader: torch dataloader object to iterate through
-        :param stage: either 'val' or 'test' based on the eval stage
-        :return: a tuple of model outputs to compute metrics on
+        Not implemented for LeJEPA (do not use a val or test dataset when training)
         """
         raise NotImplementedError
 
     def compute_metrics(self, outputs, stage):
         """
-        Compute relevant metrics for self-supervised learning
+        Compute relevant metrics for LeJEPA
         :param outputs: tuple of model outputs to compute metrics on
         :param stage: stage of experiment
         :return: dict of relevant metrics and a key metric used to choose best validation model
@@ -209,5 +209,5 @@ if __name__ == "__main__":
                         help='lambda for lejepa loss weighting')
 
     args = parser.parse_args()
-    trainer = SelfSupervisedTrainer(args)
+    trainer = LeJEPATrainer(args)
     trainer.run()

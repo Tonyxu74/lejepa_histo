@@ -25,15 +25,9 @@ python /home/txu/lejepa_histo/train_ssl.py \
   --device 0 \
   --workers 8 \
   --batch_size 256 \
-  --support_batch_size 16 \
   --ssl_method 'simclr' \
   --temperature 0.1 \
-  --target_sharpen 0.25 \
-  --support_json '' \
   --multicrop 0 \
-  --warmup 10 \
-  --start_lr 0.3 \
-  --final_lr 0.064 \
   --lr 6.4 \
   --num_epochs 100
 
