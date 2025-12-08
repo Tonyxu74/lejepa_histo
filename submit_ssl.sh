@@ -21,7 +21,7 @@ python /home/txu/lejepa_histo/train_ssl.py \
   --num_folds 1 \
   --pretrained_path '' \
   --use_pretrained 0 \
-  --resnet_name 'resnet50' \
+  --model_name 'resnet50' \
   --device 0 \
   --workers 8 \
   --batch_size 256 \

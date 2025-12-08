@@ -21,7 +21,7 @@ python /home/txu/lejepa_histo/train_lejepa.py \
   --num_folds 1 \
   --pretrained_path '' \
   --use_pretrained 0 \
-  --resnet_name 'resnet50' \
+  --model_name 'resnet50' \
   --embedding_size 512 \
   --device 0 \
   --workers 16 \

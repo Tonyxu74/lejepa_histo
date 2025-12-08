@@ -11,17 +11,18 @@ from utils.defaut_args import parser
 from utils.stain_aug import StainAug
 from dataset.datasets import SupervisedDataset
 from models.cnn import ResNetEncoder
+from models.vit import ViTEncoder
 
 
 class SupervisedTrainer(Trainer):
-    """Patch-based CNN supervised trainer"""
+    """Patch-based supervised trainer"""
 
     def __init__(self, args):
         """
         Initialize the supervised trainer
         :param args: argparse arguments entered for experiment
         """
-        self.run_task = 'Strongly supervised patch-level CNN training'
+        self.run_task = 'Strongly supervised patch-level training'
         print(f'Task={self.run_task}')
         super().__init__(args)
 
@@ -59,7 +60,12 @@ class SupervisedTrainer(Trainer):
         """
 
         # define model for supervised patch learning
-        self.model = ResNetEncoder(self.args)
+        if 'resnet' in self.args.model_name:
+            self.model = ResNetEncoder(self.args)
+        elif 'vit' in self.args.model_name:
+            self.model = ViTEncoder(self.args)
+        else:
+            raise NotImplementedError(f'Model {self.args.model_name} not implemented for supervised trainer!')
         if self.args.use_pretrained:
             self.load_pretrained(path=self.args.pretrained_path)
 
@@ -69,14 +75,22 @@ class SupervisedTrainer(Trainer):
             param.requires_grad = False
 
         # randomly initialize and train final classification layer
-        self.model.model.fc = nn.Linear(
-            2048,
-            self.args.num_classes
-        ).to(self.device)
+        if 'resnet' in self.args.model_name:
+            self.model.model.fc = nn.Linear(
+                self.model.hidden_dim,
+                self.args.num_classes
+            ).to(self.device)
+            params = self.model.model.fc.parameters()
+        elif 'vit' in self.args.model_name:
+            self.model.head = nn.Linear(
+                self.model.hidden_dim,
+                self.args.num_classes
+            ).to(self.device)
+            params = self.model.head.parameters()
 
         # optim definition
         self.optimizer = torch.optim.AdamW(
-            self.model.model.fc.parameters(),
+            params,
             lr=self.args.lr,
             weight_decay=self.args.weight_decay,
             betas=(self.args.beta1, self.args.beta2)
@@ -84,7 +98,7 @@ class SupervisedTrainer(Trainer):
 
     def train_one_epoch(self, dataloader):
         """
-        Defines one epoch of supervised CNN training loop
+        Defines one epoch of supervised training loop
         :param dataloader: torch train dataloader object to iterate
         :return: a tuple of model outputs to compute metrics on
         """
@@ -121,7 +135,7 @@ class SupervisedTrainer(Trainer):
 
     def evaluate(self, dataloader, stage):
         """
-        Defines one epoch of supervised CNN evaluation
+        Defines one epoch of supervised evaluation
         :param dataloader: torch dataloader object to iterate through
         :param stage: either 'val' or 'test' based on the eval stage
         :return: a tuple of model outputs to compute metrics on
@@ -189,7 +203,7 @@ class SupervisedTrainer(Trainer):
 
     def configure_wandb_metrics(self):
         """
-        Configures wandb metrics for supervised CNN training
+        Configures wandb metrics for supervised training
         """
         wandb.config.run_task = self.run_task
         for stage in ['train', 'val', 'test']:
@@ -201,7 +215,7 @@ class SupervisedTrainer(Trainer):
 
     def load_pretrained(self, path):
         """
-        Loads pretrained model for CNN training, with a special case dealing with simclr-trained weights
+        Loads pretrained model for training, with a special case dealing with simclr-trained weights
         :param path: path to pretrained model weights
         """
         if 'simclr_resnet50.ckpt' not in path:
@@ -230,8 +244,8 @@ if __name__ == "__main__":
                         help='path to pretrained model')
     parser.add_argument('--use_pretrained', default=0, type=int,
                         help='whether to use pretrained model or not')
-    parser.add_argument('--resnet_name', default='resnet18', type=str,
-                        help='name of resnet model for CNN')
+    parser.add_argument('--model_name', default='resnet18', type=str,
+                        help='name of model for training')
     parser.add_argument('--num_classes', default=2, type=int,
                         help='number of classification classes')
     parser.add_argument('--embedding_size', default=512, type=int,

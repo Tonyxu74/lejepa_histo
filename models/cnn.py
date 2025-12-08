@@ -9,7 +9,7 @@ class ResNetEncoder(nn.Module):
     def __init__(self, args):
         super(ResNetEncoder, self).__init__()
 
-        self.model = torchvision.models.__dict__[args.resnet_name](pretrained=False)
+        self.model = torchvision.models.__dict__[args.model_name](pretrained=False)
 
         # match hidden dim of resnet size, FC layer from PAWS paper
         hidden_dim = self.model.fc.in_features
@@ -22,6 +22,7 @@ class ResNetEncoder(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(hidden_dim, args.embedding_size)
         )
+        self.hidden_dim = hidden_dim
 
     def forward(self, inputs):
         # forward function dealing with multicrops, which are different in dimension to large crops

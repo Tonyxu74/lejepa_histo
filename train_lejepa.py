@@ -12,6 +12,7 @@ from utils.defaut_args import parser
 from utils.ssl_losses import SIGReg
 from dataset.datasets import SimCLRDataset
 from models.cnn import ResNetEncoder
+from models.vit import ViTEncoder
 from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
 
 
@@ -67,7 +68,12 @@ class LeJEPATrainer(Trainer):
         """
 
         # define model for ssl
-        self.model = ResNetEncoder(self.args)
+        if 'resnet' in self.args.model_name:
+            self.model = ResNetEncoder(self.args)
+        elif 'vit' in self.args.model_name:
+            self.model = ViTEncoder(self.args)
+        else:
+            raise NotImplementedError(f'Model {self.args.model_name} not implemented for LeJEPA trainer!')
         self.model = self.model.to(self.device)
 
         # params based on LeJEPA paper
@@ -197,8 +203,8 @@ if __name__ == "__main__":
                         help='path to pretrained model')
     parser.add_argument('--use_pretrained', default=0, type=int,
                         help='whether to use pretrained model or not')
-    parser.add_argument('--resnet_name', default='resnet50', type=str,
-                        help='name of resnet model for CNN')
+    parser.add_argument('--model_name', default='resnet50', type=str,
+                        help='name of model for training')
     parser.add_argument('--embedding_size', default=512, type=int,
                         help='size of embedding for ResNet output')
     parser.add_argument('--multicrop', default=8, type=int,

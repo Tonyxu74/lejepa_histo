@@ -20,35 +20,41 @@ Generic arguments can be found in `utils/default_args.py` and task-specific argu
 ## Results (in progress!)
 
 I pretrained LeJEPA on patches taken from the [SemiCOL](https://www.semicol.org/) challenge dataset and finetuned on [NCT-CRC-HE-100K](https://zenodo.org/records/1214456) for tissue classification.
-I used a batch size of 256, 2 global crops and 8 local crops, and trained for 100 epochs. It took about 46 GB of GPU memory and 3 days to train.
+I used a batch size of 256, 2 global crops and 8 local crops, and trained for 100 epochs. It took about 46 GB of GPU memory and 3 days to train. All results are obtained by training a linear layer on top of pretrained weights with the model frozen.
 
+### Overall comparison
 I used SimCLR with similar settings as a baseline for comparison, and will be training LeJEPA on NCT-CRC-HE-100K directly (unlabelled), and training LeJEPA using a ViT architecture.
 
 | Pretraining Method | Pretraining Dataset                                              | Architecture | Results (Acc.)      |
 |--------------------|------------------------------------------------------------------|--------------|---------------------|
 | LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     | 0.949               |
 | SimCLR             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     | 0.931               |
-| LeJEPA             | NCT-CRC-HE-100K                                                  | ResNet50     |                     |
+| LeJEPA             | NCT-CRC-HE-100K                                                  | ResNet50     | 0.956               |
 | LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ViT-Base     |                     |
 | LeJEPA             | NCT-CRC-HE-100K                                                  | ViT-Base     |                     |
 
-The following details the training progress of the first row in the results table. Results were obtained by training a linear layer on top of pretrained weights with the model frozen. 
-LeJEPA seems to converge quickly in these experiments (which may be why loss and downstream accuracy are not fully correlated). 
 
-| Pretrain Epoch | LeJEPA Loss | Acc.  | 
-|----------------|-------------|-------|
-| Random Init.   | N/A         | 0.536 |
-| 10             | 0.609       | 0.954 |
-| 20             | 0.554       | 0.951 |
-| 30             | 0.537       | 0.952 |
-| 40             | 0.526       | 0.954 |
-| 50             | 0.516       | 0.951 |
-| 60             | 0.507       | 0.947 |
-| 70             | 0.497       | 0.954 |
-| 80             | 0.487       | 0.955 |
-| 90             | 0.481       | 0.956 |
-| 100            | 0.478       | 0.949 |
+### Pretraining progress
+The following details the pretraining progress of the first and third rows in the results table above. Compared to the patch dataset from SemiCOL, the unlabelled train set of NCT-CRC-HE-100K is about 10 times smaller. 
+LeJEPA seems to converge quickly in these experiments (which may be why loss and downstream accuracy are not correlated when pretraining on SemiCOL). 
 
+| Pretrain Epoch | LeJEPA Loss (SemiCOL PT) | Acc. (SemiCOL PT)  | LeJEPA Loss (NCT PT) | Acc. (NCT PT)  | 
+|----------------|--------------------------|--------------------|----------------------|----------------|
+| Random Init.   | N/A                      | 0.536              | N/A                  | 0.536          |
+| 10             | 0.609                    | 0.954              | 1.376                | 0.647          |
+| 20             | 0.554                    | 0.951              | 0.863                | 0.912          |
+| 30             | 0.537                    | 0.952              | 0.698                | 0.948          |
+| 40             | 0.526                    | 0.954              | 0.619                | 0.951          |
+| 50             | 0.516                    | 0.951              | 0.568                | 0.961          |
+| 60             | 0.507                    | 0.947              | 0.531                | 0.963          |
+| 70             | 0.497                    | 0.954              | 0.502                | 0.964          |
+| 80             | 0.487                    | 0.955              | 0.479                | 0.963          |
+| 90             | 0.481                    | 0.956              | 0.465                | 0.960          |
+| 100            | 0.478                    | 0.949              | 0.455                | 0.956          |
+
+LeJEPA loss seems to be reasonably well correlated against downstream accuracy for pretraining on the unlabelled NCT-CRC-HE-100K train set (plotted below):
+
+![LeJEPA Loss vs Downstream Accuracy](assets/NCT_pretrain_progress.png)
 
 ## Acknowledgements
 

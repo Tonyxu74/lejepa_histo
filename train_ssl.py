@@ -8,6 +8,7 @@ from utils.defaut_args import parser
 from utils.ssl_losses import NTXent
 from dataset.datasets import SimCLRDataset
 from models.cnn import ResNetEncoder
+from models.vit import ViTEncoder
 from utils.ssl_optim import SGD, LARS
 
 
@@ -67,7 +68,12 @@ class SelfSupervisedTrainer(Trainer):
         """
 
         # define model for ssl
-        self.model = ResNetEncoder(self.args)
+        if 'resnet' in self.args.model_name:
+            self.model = ResNetEncoder(self.args)
+        elif 'vit' in self.args.model_name:
+            self.model = ViTEncoder(self.args)
+        else:
+            raise NotImplementedError(f'Model {self.args.model_name} not implemented for SSL trainer!')
         self.model = self.model.to(self.device)
 
         if self.args.ssl_method == 'simclr':
@@ -236,8 +242,8 @@ if __name__ == "__main__":
                         help='path to pretrained model')
     parser.add_argument('--use_pretrained', default=0, type=int,
                         help='whether to use pretrained model or not')
-    parser.add_argument('--resnet_name', default='resnet18', type=str,
-                        help='name of resnet model for CNN')
+    parser.add_argument('--model_name', default='resnet18', type=str,
+                        help='name of model for training')
     parser.add_argument('--embedding_size', default=2048, type=int,
                         help='size of embedding for ResNet output')
     parser.add_argument('--ssl_method', default='simclr', type=str,

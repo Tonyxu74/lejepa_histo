@@ -21,7 +21,7 @@ python /home/txu/lejepa_histo/train_supervised.py \
   --num_folds 1 \
   --pretrained_path '' \
   --use_pretrained 0 \
-  --resnet_name 'resnet50' \
+  --model_name 'resnet50' \
   --device 0 \
   --workers 10 \
   --batch_size 32 \
@@ -43,7 +43,7 @@ python /home/txu/lejepa_histo/train_supervised.py \
   --num_folds 1 \
   --pretrained_path /project/amgrp/txu/lejepa/logs/model_weights_epoch_${ep}.pt \
   --use_pretrained 1 \
-  --resnet_name 'resnet50' \
+  --model_name 'resnet50' \
   --device 0 \
   --workers 10 \
   --batch_size 32 \
