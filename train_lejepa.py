@@ -1,6 +1,8 @@
 import torch
 import wandb
 from torchvision import transforms
+import torch.multiprocessing
+torch.multiprocessing.set_sharing_strategy('file_system')
 from math import ceil
 from PIL import ImageFilter
 from torch.cuda.amp import GradScaler, autocast
