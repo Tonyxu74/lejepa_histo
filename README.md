@@ -19,20 +19,22 @@ Generic arguments can be found in `utils/default_args.py` and task-specific argu
 
 ## Results (in progress!)
 
-I pretrained LeJEPA on patches taken from the [SemiCOL](https://www.semicol.org/) challenge dataset and finetuned on [NCT-CRC-HE-100K](https://zenodo.org/records/1214456) for tissue classification.
+I pretrained LeJEPA on unlabelled patches taken from the [SemiCOL](https://www.semicol.org/) challenge dataset as well as the (unlabelled) train set of [NCT-CRC-HE-100K](https://zenodo.org/records/1214456) as a small in-domain comparison. 
+I finetuned on [NCT-CRC-HE-100K](https://zenodo.org/records/1214456) as a downstream tissue classification task to evaluate pretrained models.
 I used a batch size of 256, 2 global crops and 8 local crops, and trained for 100 epochs. It took about 46 GB of GPU memory and 3 days to train. All results are obtained by training a linear layer on top of pretrained weights with the model frozen.
 
 ### Overall comparison
-I used SimCLR with similar settings as a baseline for comparison, and will be training LeJEPA on NCT-CRC-HE-100K directly (unlabelled), and training LeJEPA using a ViT architecture.
+I used SimCLR with similar settings as a baseline for comparison. 
+I trained both a ResNet50 and ViT-Small using LeJEPA, with the ResNet50 using `lr=2e-3` and `lambda=0.05`, and ViT using `lr=5e-4` and `lambda=0.02`.
+LeJEPA seemed to generalize reasonably well to both architectures with very minimal tuning, though the ViT performed worse when pretraining on the smaller dataset (could be because it is more data hungry).
 
-| Pretraining Method | Pretraining Dataset                                              | Architecture | Results (Acc.)      |
-|--------------------|------------------------------------------------------------------|--------------|---------------------|
-| LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     | 0.949               |
-| SimCLR             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     | 0.931               |
-| LeJEPA             | NCT-CRC-HE-100K                                                  | ResNet50     | 0.956               |
-| LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ViT-Base     |                     |
-| LeJEPA             | NCT-CRC-HE-100K                                                  | ViT-Base     |                     |
-
+| Pretraining Method | Pretraining Dataset                                              | Architecture | Cls. Acc. | Cls. F1 |
+|--------------------|------------------------------------------------------------------|--------------|-----------|---------|
+| LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     | 0.949     | 0.924   |
+| SimCLR             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ResNet50     | 0.931     | 0.902   |
+| LeJEPA             | NCT-CRC-HE-100K                                                  | ResNet50     | **0.956**     | **0.947**   |
+| LeJEPA             | Patches taken from [SemiCOL](https://www.semicol.org/) challenge | ViT-Small     | 0.946     | 0.924   |
+| LeJEPA             | NCT-CRC-HE-100K                                                  | ViT-Small     | 0.927     | 0.919   |
 
 ### Pretraining progress
 The following details the pretraining progress of the first and third rows in the results table above. Compared to the patch dataset from SemiCOL, the unlabelled train set of NCT-CRC-HE-100K is about 10 times smaller. 
